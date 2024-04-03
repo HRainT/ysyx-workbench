@@ -1,5 +1,5 @@
 STUID = ysyx_22040000
-STUNAME = 韩雨潼
+STUNAME = 韩雨潼(HRainT)
 
 # DO NOT modify the following code!!!
 
