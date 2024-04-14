@@ -53,6 +53,8 @@ static int cmd_q(char *args) {
 }
 
 static int cmd_help(char *args);
+static int cmd_si(char *args);
+static int cmd_info(char *args);
 
 static struct {
   const char *name;
@@ -62,18 +64,47 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
-
+  { "si", "Let the programexcute N instuctions and then suspend the excution,the default value is 1", cmd_si },
+  { "info", "Display the info of registers and watchpoints", cmd_info },
   /* TODO: Add more commands */
 
 };
 
 #define NR_CMD ARRLEN(cmd_table)
 
+ static int cmd_si(char *args) {                                            
+	 char *arg = strtok(NULL, " ");
+   int n;
+
+   if (arg == NULL) {
+    n = 1;
+   } else {
+      n = strtol(arg, NULL, 10);
+    }
+    cpu_exec(n);
+   return 0;
+ }
+
+ static int cmd_info(char *args) {
+    char *arg = strtok(NULL, " ");
+   if (arg == NULL) { 
+      printf("info r or info w\n");   
+   } else {
+      if (strcmp(arg, "r") == 0) {
+        isa_reg_display();
+      } else if (strcmp(arg, "w") == 0) {
+        // todo
+      } else {
+        printf("Usage: info r (registers) or info w (watchpoints)\n");
+      }
+   }
+   return 0;
+ }
+       
 static int cmd_help(char *args) {
   /* extract the first argument */
   char *arg = strtok(NULL, " ");
   int i;
-
   if (arg == NULL) {
     /* no argument given */
     for (i = 0; i < NR_CMD; i ++) {

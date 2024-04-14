@@ -22,7 +22,7 @@ compile_git:
 	$(call git_commit, "compile NEMU")
 $(BINARY): compile_git
 
-# Some convenient rules
+# Soe convenient rules
 
 override ARGS ?= --log=$(BUILD_DIR)/nemu-log.txt
 override ARGS += $(ARGS_DIFF)
@@ -35,6 +35,9 @@ run-env: $(BINARY) $(DIFF_REF_SO)
 
 run: run-env
 	$(call git_commit, "run NEMU")
+	$(info Variable BINARY is $(BINARY))
+	$(info Variable ARGS is $(ARGS))
+	$(info Variable IMG is $(IMG))
 	$(NEMU_EXEC)
 
 gdb: run-env
