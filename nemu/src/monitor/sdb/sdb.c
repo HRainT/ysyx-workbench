@@ -55,6 +55,8 @@ static int cmd_q(char *args) {
 static int cmd_help(char *args);
 static int cmd_si(char *args);
 static int cmd_info(char *args);
+static int cmd_x(char *args);
+word_t vaddr_read(vaddr_t addr, int len);
 
 static struct {
   const char *name;
@@ -66,24 +68,37 @@ static struct {
   { "q", "Exit NEMU", cmd_q },
   { "si", "Let the programexcute N instuctions and then suspend the excution,the default value is 1", cmd_si },
   { "info", "Display the info of registers and watchpoints", cmd_info },
+  { "x", "x N EXPR. Scan the memory from EXPR by N bytes", cmd_x },
   /* TODO: Add more commands */
 
 };
 
 #define NR_CMD ARRLEN(cmd_table)
 
- static int cmd_si(char *args) {                                            
-	 char *arg = strtok(NULL, " ");
-   int n;
+ static int cmd_si(char *args) {
+    char *arg = strtok(NULL, " ");
+    int steps = 0;  // 默认执行一步
 
-   if (arg == NULL) {
-    n = 1;
-   } else {
-      n = strtol(arg, NULL, 10);
+    if (arg == NULL) {
+        cpu_exec(1);  // 如果没有提供参数，默认执行一步
+    } else {
+        if (sscanf(arg, "%d", &steps) == 1) {
+            // sscanf 成功读取一个整数
+            if (steps < 0) {
+                printf("Error, N is an integer greater than or equal to 0\n");
+            } else {
+                cpu_exec(steps);  // 执行指定数量的步骤
+            }
+        } else {
+            // sscanf 未能读取一个整数
+            printf("Error, the argument is not a valid integer\n");
+        }
     }
-    cpu_exec(n);
-   return 0;
- }
+
+    return 0;
+}
+
+
 
  static int cmd_info(char *args) {
     char *arg = strtok(NULL, " ");
@@ -100,7 +115,38 @@ static struct {
    }
    return 0;
  }
-       
+  
+static int cmd_x(char *args){
+    char *N = strtok(NULL, " ");
+    char *EXPR = strtok(NULL, " ");
+    int len;
+    vaddr_t address;
+
+    if (N == NULL || EXPR == NULL) {
+        printf("Error: Missing arguments.\n");
+        return 1; // 返回非零值表示错误
+    }
+    
+    if (sscanf(N, "%d", &len) != 1) {
+        printf("Error: The first argument is not a valid integer.\n");
+        return 1;
+    }
+
+    if (sscanf(EXPR, "%x", &address) != 1) {
+        printf("Error: The second argument is not a valid hexadecimal number.\n");
+        return 1;
+    }
+    
+    printf("0x%x:", address);
+    for(int i = 0; i < len; i++){
+        printf("%08x ", vaddr_read(address, 4));
+        address += 4;
+    }
+    printf("\n");
+    return 0;
+}
+
+
 static int cmd_help(char *args) {
   /* extract the first argument */
   char *arg = strtok(NULL, " ");
