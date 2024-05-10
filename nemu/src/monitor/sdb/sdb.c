@@ -57,7 +57,7 @@ static int cmd_si(char *args);
 static int cmd_info(char *args);
 static int cmd_x(char *args);
 word_t vaddr_read(vaddr_t addr, int len);
-
+static int cmd_p(char *args);
 static struct {
   const char *name;
   const char *description;
@@ -69,11 +69,25 @@ static struct {
   { "si", "Let the programexcute N instuctions and then suspend the excution,the default value is 1", cmd_si },
   { "info", "Display the info of registers and watchpoints", cmd_info },
   { "x", "x N EXPR. Scan the memory from EXPR by N bytes", cmd_x },
+  { "p", "p EXPR. Calculate the expression, e.g. p $eax + 1", cmd_p },
+
   /* TODO: Add more commands */
 
 };
 
 #define NR_CMD ARRLEN(cmd_table)
+  
+ static int cmd_p(char* args) {
+  bool success;
+  word_t res = expr(args, &success);
+  if (!success) {
+    puts("invalid expression");
+  } else {
+    printf("%u\n", res);
+  }
+  return 0;
+}
+
 
  static int cmd_si(char *args) {
     char *arg = strtok(NULL, " ");

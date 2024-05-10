@@ -21,7 +21,7 @@
 #include <regex.h>
 
 enum {
-  TK_NOTYPE = 256, TK_EQ,
+  TK_NOTYPE = 256, TK_EQ,TK_NUM,TK_REG,TK_VAR,
 
   /* TODO: Add more token types */
 
@@ -39,14 +39,23 @@ static struct rule {
   {" +", TK_NOTYPE},    // spaces
   {"\\+", '+'},         // plus
   {"==", TK_EQ},        // equal
+  {"-", '-'},
+  {"\\*", '*'},
+  {"/", '/'},
+  {"\\(", '('},
+  {"\\)", ')'},
+
+  {"[0-9]+", TK_NUM}, // TODO: non-capture notation (?:pattern) makes compilation failed
+  {"\\$\\w+", TK_REG},
+  {"[A-Za-z_]\\w*", TK_VAR},  
 };
 
 #define NR_REGEX ARRLEN(rules)
 
 static regex_t re[NR_REGEX] = {};
 
-/* Rules are used for many times.
- * Therefore we compile them only once before any usage.
+/* rules are used for many times.
+ * therefore we compile them only once before any usage.
  */
 void init_regex() {
   int i;
@@ -93,33 +102,132 @@ static bool make_token(char *e) {
          * to record the token in the array `tokens'. For certain types
          * of tokens, some extra actions should be performed.
          */
-
+        if (rules[i].token_type == TK_NOTYPE) break;
+        tokens[nr_token].type = rules[i].token_type;
         switch (rules[i].token_type) {
-          default: TODO();
+          case TK_NUM:
+          case TK_REG:
+          case TK_VAR:
+            strncpy(tokens[nr_token].str, substr_start, substr_len);
+            tokens[nr_token].str[substr_len] = '\0';
+          //default: TODO();
         }
-
+        nr_token++;
         break;
       }
     }
-
-    if (i == NR_REGEX) {
+        if (i == NR_REGEX) {
       printf("no match at position %d\n%s\n%*.s^\n", position, e, position, "");
       return false;
     }
   }
-
+ /* for (int j = 0; j < 32; j++) {
+    printf("Token %d:\n", j);
+    printf(" Type: %d\n", tokens[j].type);
+    printf(" Str: %s\n", tokens[j].str);
+  }*/
   return true;
 }
 
+bool check_parentheses(int p, int q) {
+  if (tokens[p].type=='(' && tokens[q].type==')') {
+    int par = 0;
+    for (int i = p; i <= q; i++) {
+      if (tokens[i].type=='(') par++;
+      else if (tokens[i].type==')') par--;
+
+      if (par == 0) return i==q; // the leftest parenthese is matched
+    }
+  }
+  return false;
+}
+
+int find_major(int p, int q) {
+  int ret = -1, par = 0, op_type = 0;
+  for (int i = p; i <= q; i++) {
+    if (tokens[i].type == TK_NUM) {
+      continue;
+    }
+    if (tokens[i].type == '(') {
+      par++;
+    } else if (tokens[i].type == ')') {
+      if (par == 0) {
+        return -1;
+      }
+      par--;
+    } else if (par > 0) {
+      continue;
+    } else {
+      int tmp_type = 0;
+
+      printf("tokens[%d].type = %d\n", i, tokens[i].type);
+
+      switch (tokens[i].type) {
+      case '*': case '/': tmp_type = 1; break;
+      case '+': case '-': tmp_type = 2; break;
+      default: assert(0);
+      }
+      if (tmp_type >= op_type) {
+        op_type = tmp_type;
+        ret = i;
+      }
+    }
+  }
+  if (par != 0) return -1;
+  return ret;
+}
+
+word_t eval(int p, int q, bool *ok) {
+  *ok = true;
+  printf("The value of p is: %d\n", p);
+  printf("The value of q is: %d\n", q);
+  if (p > q) {
+    *ok = false;
+    return 0;
+  } else if (p == q) {
+    if (tokens[p].type != TK_NUM) {
+      *ok = false;
+      return 0;
+    }
+    word_t ret = strtol(tokens[p].str, NULL, 10);
+    return ret;
+  } else if (check_parentheses(p, q)) {
+    return eval(p+1, q-1, ok);
+  } else {
+    int major = find_major(p, q);
+    printf("The value of major is: %d\n", major);
+    if (major < 0) {
+      *ok = false;
+      return 0;
+    }
+    word_t val1 = eval(p, major-1, ok);
+    printf("The value of val1 is: %u\n", val1);
+
+    if (!*ok) return 0;
+    word_t val2 = eval(major+1, q, ok);
+    printf("The value of val2 is: %u\n", val2);
+    if (!*ok) return 0;
+    
+    switch(tokens[major].type) {
+      case '+': return val1 + val2;
+      case '-': return val1 - val2;
+      case '*': return val1 * val2;
+      case '/': if (val2 == 0) {
+        *ok = false;
+        return 0;
+      } 
+      return (sword_t)val1 / (sword_t)val2;    
+      default: assert(0);
+    }
+  }
+}
 
 word_t expr(char *e, bool *success) {
-  if (!make_token(e)) {
+  bool result = make_token(e);
+  printf("The success is: %d\n", result);
+  if (!result) {
     *success = false;
     return 0;
   }
-
-  /* TODO: Insert codes to evaluate the expression. */
-  TODO();
-
-  return 0;
+  return eval(0, nr_token-1, success);
 }
